@@ -58,9 +58,9 @@ title: "Variant calling report: `r sample`"
 # Read quality control {.tabset}
 
 Libraries were prepared using the `r libprepkit` kit, and sequencing was performed on a `r poretype` flow cell. Reads were basecalled using the `r accuracy` basecalling model. <br><br>
-Reads were filtered using Filtlong (see [here](https://github.com/rrwick/Filtlong), v0.2.1) to enrich for long high-quality reads:
+Reads were filtered using `r paste(snakemake@config[["filtering"]])` to enrich for long high-quality reads:
 ```
-filtlong `r paste(snakemake@config[["filtlong"]][["params"]])` <RAWFASTQ>
+`r paste(snakemake@config[["filtering"]])` `r paste(snakemake@config[[snakemake@config[["filtering"]]]][["params"]])` <RAWFASTQ>
 ```
 <br>
 Please see the separate MultiQC report for more details on read quality. The most important metrics can be found here:
@@ -204,11 +204,8 @@ for (infile in infiles) {
 }
 ```
 
-Filtered reads were aligned to the supplied reference genome (`r unique(rawcov$contig)`) using the aligner NGMLR. NGMLR was designed to reliably align reads for the discovery of diverse structural variants (see [here](https://doi.org/10.1038%2Fs41592-018-0001-7) and [here](https://github.com/philres/ngmlr)).
-NGMLR (v0.2.7) was run using the default parameters for nanopore reads:
-```
-ngmlr -x ont -r <REFERENCE> -q <FASTQ> -o <SAM>
-```
+Filtered reads were aligned to the supplied reference genome (`r unique(rawcov$contig)`) using the aligner `r paste(snakemake@config[["aligner"]])`
+
 The resulting SAM alignment file was consequently converted to a sorted and indexed BAM alignment file using samtools (v1.9).<br><br>
 In total, `r round(fraction_mapped_reads,1)`% of the reads could be mapped to the reference genome with a coverage of `r round(nrow(subset(rawcov, depth >= 1)) / nrow(rawcov) * 100, 3)`% and a mean coverage depth of `r round(mean(rawcov$depth), 1)`x.
 Further information is provided in the following tabs:<br>
@@ -241,7 +238,7 @@ cov4plotting <- coverages %>%
 covplot <- ggplot(data = cov4plotting, aes(x = coverage.depth, y = value)) +
   geom_line(aes(color = variable)) +
   labs(x = "read depth", y = "% covered bases", title = "Genome coverage") +
-  scale_x_continuous(trans = "log10")
+  scale_x_continuous(trans = "log10", guide = "axis_logticks")
 covplot
 ```
 
@@ -283,7 +280,7 @@ endplot
 
 ## Small nucleotide variants {.tabset}
 
-Single nucleotide variants and indels were identified using two different tools, Clair3 and Medaka.
+Single nucleotide variants and indels were identified using three different tools, Clair3 and DeepVariant.
 
 ```{r functions_snvs, echo=FALSE}
 determine_snv_type <- function(x) {
@@ -315,7 +312,7 @@ create_gradient <- function(vector, color) {
 
 ### Clair3
 
-Clair3 is a deep learning-based variant caller (see [here](https://doi.org/10.1038/s43588-022-00387-x) and [here](https://github.com/HKU-BAL/Clair3)). Clair3 (v1.0.5) was run on the alignment files produced by NGMLR using standard parameters:
+Clair3 is a deep learning-based variant caller (see [here](https://doi.org/10.1038/s43588-022-00387-x) and [here](https://github.com/HKU-BAL/Clair3)). Clair3 (v1.0.5) was run on the alignment files produced by `r paste(snakemake@config[["aligner"]])` using standard parameters:
 ```
 run_clair3.sh --bam_fn <BAM> --ref_fn <REFERENCE> --include_all_ctgs --haploid_sensitive
 --platform ont --model_path <BASECALLINGMODEL> --output <OUTPUTDIRECTORY>
@@ -378,13 +375,14 @@ if (nrow(clair) > 0) {
   ) %>%
   formatStyle(
     "allele.frequency",
-    backgroundColor = styleInterval(80, create_gradient(c(80), "0,255,0"))
+    backgroundColor = styleInterval(75, create_gradient(c(75), "0,255,0"))
   )
 } else {
   cat("No variants detected by Clair3")
 }
 ```
 
+<!-- 
 ### Medaka
 
 Medaka is a neural network-based variant caller developed by Oxford Nanopore Technologies (see [here](https://github.com/nanoporetech/medaka)).
@@ -392,7 +390,7 @@ Medaka does not use an alignment file as input but rather performs the alignment
 Medaka (v1.11.3) was run using the following settings:
 
 ```
-medaka_haploid_variant -m <BASECALLINGMODEL> -o <OUTPUTDIRECTORY>
+medaka_variant -m <BASECALLINGMODEL> -o <OUTPUTDIRECTORY>
 -i <FASTQ> -r <REFERENCE>
 ```
 
@@ -408,82 +406,254 @@ Predicted SNVs and indels are listed below with information on:
 * log2 ratio of the read depth per strand (should be between -0.5 and 0.5)
 
 
-```{r medaka, echo=FALSE, results = 'asis'}
-# Functions for re-formatting variant information from Medaka VCF file
-get_read_depth_for_medaka <- function(x) {
-  temp <- unlist(strsplit(x["info"], ";"))
-  for (i in temp) {
-    if (startsWith(i, "DP=")) {
-      reads <- as.integer(strsplit(i, "=")[[1]][2])
-    }
+# ```{r medaka, echo=FALSE, results = 'asis'}
+# # Functions for re-formatting variant information from Medaka VCF file
+# get_read_depth_for_medaka <- function(x) {
+#   temp <- unlist(strsplit(x["info"], ";"))
+#   for (i in temp) {
+#     if (startsWith(i, "DP=")) {
+#       reads <- as.integer(strsplit(i, "=")[[1]][2])
+#     }
+#   }
+#   return(reads)
+# }
+# get_log2_strand_depth_for_medaka <- function(x) {
+#   temp <- unlist(strsplit(x["info"], ";"))
+#   for (i in temp) {
+#     if (startsWith(i, "DPS=")) {
+#       counts <- unlist(strsplit(strsplit(i, "=")[[1]][2], ","))
+#       ratio <- log2(((as.integer(counts[1]) + 1) / (as.integer(counts[2]) + 1)))
+#     }
+#   }
+#   return(round(ratio, 3))
+# }
+# # Import of Medaka VCF file
+# medaka <- read.table(as.character(snakemake@input[["medaka"]]), sep = "\t", header = F,
+#   col.names = c("contig", "position", "ID", "ref.allele", "alt.allele", "quality", "filter", "info", "format", "sample"),
+#   colClasses = c("character", "integer", "character", "character", "character", "numeric", "character", "character", "character", "character"))
+# if (nrow(medaka) > 0) {
+#   medaka$read.depth <- apply(medaka, 1, get_read_depth_for_medaka)
+#   medaka$log2.depth.by.strand <- apply(medaka, 1, get_log2_strand_depth_for_medaka)
+#   medaka$ID <- medaka$filter <- medaka$info <- medaka$format <- medaka$sample <- NULL
+#   medaka$type <- apply(medaka, 1, determine_snv_type)
+#   medaka <- medaka[,c(1,2,8,3,4,5,6,7)]
+#   # Create output table
+#   DT::datatable(
+#     medaka,
+#     colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "quality", "read depth", "log2 read strand ratio"),
+#     filter = "top",
+#     options = 
+#       list(
+#         pageLength = 50,
+#         searchCols = list(NULL, NULL, NULL, NULL, NULL, NULL, list(search = '10 ... '), list(search = '10 ... '), NULL)
+#       )
+#   ) %>%
+#   formatStyle(
+#     "quality",
+#     backgroundColor = styleInterval(c(0:100), create_gradient(c(0:100), "0,255,0"))
+#   ) %>%
+#   formatStyle(
+#     "read.depth",
+#     backgroundColor = styleInterval(10, create_gradient(c(10), "0,255,0"))
+#   ) %>%
+#   formatStyle(
+#     "log2.depth.by.strand",
+#     backgroundColor = styleInterval(c(-0.5,0.5), c("rgba(0,255,0,0.0)", "rgba(0,255,0,1)", "rgba(0,255,0,0.0)"))
+#   )
+# } else {
+#   cat("No variants detected by Medaka")
+# }
+# ```
+ -->
+
+<!-- ### NanoCaller
+
+NanoCaller is a neural network based variant caller (see [here](https://doi.org/10.1186/s13059-021-02472-2) and [here](https://github.com/WGLab/NanoCaller)). NanoCaller (v3.6.0) was run on the alignment files produced by `r paste(snakemake@config[["aligner"]])` using customized parameters (See config file for details)):
+```
+NanoCaller --bam <BAM> --ref <REFERENCE> --preset ont --output <OUTPUTDIRECTORY> ...
+
+```
+
+Nanocaller doesn't report/retrieve read depth and allele frequency for indels for now as reported [here](https://github.com/WGLab/NanoCaller/issues/46). They are left as NA.
+Predicted SNVs and indels are listed below with information on:
+
+* contig (i.e., the chromosome)
+* position of the variant in the contig
+* variant type (SNV, insertion or deletion)
+* reference allele
+* alternative variant allele
+* quality of the variant (the higher the better, minimum quality of 2)
+* read depth at the position (should be higher than 10)
+* allele frequency (fraction of reads supporting the alternative allele, should be > 80%)
+
+
+# ```{r NanoCaller, echo=FALSE, results = 'asis'}
+# # Functions for re-formatting variant information from NanoCaller VCF file
+# # NanoCaller doesn't report depth or frequency for indels at the moment. This info will 
+# # be missing for some calls: https://github.com/WGLab/NanoCaller/issues/46
+# get_info_for_NanoCaller <- function(x, type) {
+#   keys <- unlist(strsplit(x["format"], ":"))
+#   values <- unlist(strsplit(x["sample"], ":"))
+#   df <- data.frame(values, row.names = keys)
+  
+#   if (type == "read.depth") {
+#     if ("DP" %in% rownames(df)) {
+#       return(as.integer(df["DP", 1]))
+#     } else {
+#       return(NA)  # Return NA if DP is not available
+#     }
+#   }
+  
+#   if (type == "allele.frequency") {
+#     if ("VF" %in% rownames(df)) {
+#       return(round(100 * as.double(df["VF", 1]), 1))
+#     } else {
+#       return(NA)  # Return NA if AF is not available
+#     }
+#   }
+# }
+# # Import of NanoCaller VCF file
+# NanoCaller <- read.table(as.character(snakemake@input[["NanoCaller"]]), sep = "\t", header = F,
+#   col.names = c("contig", "position", "ID", "ref.allele", "alt.allele", "quality", "filter", "info", "format", "sample"),
+#   colClasses = c("character", "integer", "character", "character", "character", "numeric", "character", "character", "character", "character"))
+# if (nrow(NanoCaller) > 0) {
+#   NanoCaller$read.depth <- apply(NanoCaller, 1, get_info_for_NanoCaller, type = "read.depth")
+#   NanoCaller$allele.frequency <- apply(NanoCaller, 1, get_info_for_NanoCaller, type = "allele.frequency")
+#   NanoCaller$ID <- NanoCaller$filter <- NanoCaller$info <- NanoCaller$format <- NanoCaller$sample <- NULL
+#   NanoCaller$type <- apply(NanoCaller, 1, determine_snv_type)
+#   NanoCaller <- NanoCaller[,c(1,2,8,3,4,5,6,7)]
+#   # Create output table
+#   DT::datatable(
+#     NanoCaller,
+#     colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "quality", "read depth", "variant allele frequency (%)"),
+#     filter = "top",
+#     options = 
+#       list(
+#         pageLength = 50,
+#         searchCols = list(NULL, NULL, NULL, NULL, NULL, NULL, list(search = '10 ... '), list(search = '10 ... '), NULL)
+#       )
+#   ) %>%
+#   formatStyle(
+#     "quality",
+#     backgroundColor = styleInterval(c(2:20), create_gradient(c(2:20), "0,255,0"))
+#   ) %>%
+#   formatStyle(
+#     "read.depth",
+#     backgroundColor = styleInterval(10, create_gradient(c(10), "0,255,0"))
+#   ) %>%
+#   formatStyle(
+#     "allele.frequency",
+#     backgroundColor = styleInterval(80, create_gradient(c(80), "0,255,0"))
+#   )
+# } else {
+#   cat("No variants detected by NanoCaller")
+# }
+# ``` 
+ -->
+
+### DeepVariant
+
+DeepVariant is a deep learning-based variant caller (see [here](https://doi.org/10.1038/nbt.4235) and [here](https://github.com/google/deepvariant)). DeepVariant (v1.0.5) was run on the alignment files produced by `r paste(snakemake@config[["aligner"]])` using non-standard parameters:
+<!-- ```
+run_DeepVariant.sh --bam_fn <BAM> --ref_fn <REFERENCE> --include_all_ctgs --haploid_sensitive
+--platform ont --model_path <BASECALLINGMODEL> --output <OUTPUTDIRECTORY>
+``` -->
+
+Predicted SNVs and indels are listed below with information on:
+
+* contig (i.e., the chromosome)
+* position of the variant in the contig
+* variant type (SNV, insertion or deletion)
+* reference allele
+* alternative variant allele
+* quality of the variant (the higher the better, minimum quality of 2)
+* read depth at the position (should be higher than 10)
+* allele frequency (fraction of reads supporting the alternative allele, should be > 80%)
+
+\
+
+```{r DeepVariant, echo=FALSE, results = 'asis'}
+# Functions for re-formatting variant information from DeepVariant VCF file
+get_info_for_DeepVariant <- function(x, type) {
+  keys <- unlist(strsplit(x["format"], ":"))
+  values <- unlist(strsplit(x["sample"], ":"))
+  df <- data.frame(values, row.names = keys)
+  if (type == "read.depth") {
+    return(as.integer(df["DP",1]))
   }
-  return(reads)
-}
-get_log2_strand_depth_for_medaka <- function(x) {
-  temp <- unlist(strsplit(x["info"], ";"))
-  for (i in temp) {
-    if (startsWith(i, "DPS=")) {
-      counts <- unlist(strsplit(strsplit(i, "=")[[1]][2], ","))
-      ratio <- log2(((as.integer(counts[1]) + 1) / (as.integer(counts[2]) + 1)))
-    }
+  if (type == "allele.frequency") {
+    return(round(100 * as.double(df["VAF",1]), 1))
   }
-  return(round(ratio, 3))
 }
-# Import of Medaka VCF file
-medaka <- read.table(as.character(snakemake@input[["medaka"]]), sep = "\t", header = F,
+# Import of DeepVariant VCF file
+DeepVariant <- read.table(as.character(snakemake@input[["DeepVariant"]]), sep = "\t", header = F,
   col.names = c("contig", "position", "ID", "ref.allele", "alt.allele", "quality", "filter", "info", "format", "sample"),
   colClasses = c("character", "integer", "character", "character", "character", "numeric", "character", "character", "character", "character"))
-if (nrow(medaka) > 0) {
-  medaka$read.depth <- apply(medaka, 1, get_read_depth_for_medaka)
-  medaka$log2.depth.by.strand <- apply(medaka, 1, get_log2_strand_depth_for_medaka)
-  medaka$ID <- medaka$filter <- medaka$info <- medaka$format <- medaka$sample <- NULL
-  medaka$type <- apply(medaka, 1, determine_snv_type)
-  medaka <- medaka[,c(1,2,8,3,4,5,6,7)]
+if (nrow(DeepVariant) > 0) {
+  DeepVariant$read.depth <- apply(DeepVariant, 1, get_info_for_DeepVariant, type = "read.depth")
+  DeepVariant$allele.frequency <- apply(DeepVariant, 1, get_info_for_DeepVariant, type = "allele.frequency")
+  DeepVariant$ID <- DeepVariant$filter <- DeepVariant$info <- DeepVariant$format <- DeepVariant$sample <- NULL
+  DeepVariant$type <- apply(DeepVariant, 1, determine_snv_type)
+  DeepVariant <- DeepVariant[,c(1,2,8,3,4,5,6,7)]
   # Create output table
   DT::datatable(
-    medaka,
-    colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "quality", "read depth", "log2 read strand ratio"),
+    DeepVariant,
+    colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "quality", "read depth", "variant allele frequency (%)"),
     filter = "top",
     options = 
       list(
         pageLength = 50,
-        searchCols = list(NULL, NULL, NULL, NULL, NULL, NULL, list(search = '10 ... '), list(search = '10 ... '), NULL)
+        searchCols = list(NULL, NULL, NULL, NULL, NULL, NULL, list(search = '5 ... '), list(search = '10 ... '), NULL)
       )
   ) %>%
   formatStyle(
     "quality",
-    backgroundColor = styleInterval(c(0:100), create_gradient(c(0:100), "0,255,0"))
+    backgroundColor = styleInterval(c(2:20), create_gradient(c(2:20), "0,255,0"))
   ) %>%
   formatStyle(
     "read.depth",
     backgroundColor = styleInterval(10, create_gradient(c(10), "0,255,0"))
   ) %>%
   formatStyle(
-    "log2.depth.by.strand",
-    backgroundColor = styleInterval(c(-0.5,0.5), c("rgba(0,255,0,0.0)", "rgba(0,255,0,1)", "rgba(0,255,0,0.0)"))
+    "allele.frequency",
+    backgroundColor = styleInterval(75, create_gradient(c(75), "0,255,0"))
   )
 } else {
-  cat("No variants detected by Medaka")
+  cat("No variants detected by DeepVariant")
 }
 ```
 
-### Both tools {.active}
+### All tools {.active}
 
-The following variants were identified by both Clair3 and Medaka. Please note that the two tools use different approaches to calculate the quality score of SNVs.
+The following variants were identified by Clair3 and DeepVariant. Please note that the these three tools use different approaches to calculate the quality score of SNVs.
 
 ```{r commonsnvs, echo=FALSE, results = 'asis'}
-if ((nrow(clair) > 0 && nrow(medaka) > 0)) {
+# if ((nrow(clair) > 0 && nrow(medaka) > 0 && nrow(NanoCaller) > 0)) {
+# if ((nrow(clair) > 0 && nrow(NanoCaller) > 0 && nrow(DeepVariant) > 0 )) {
+# if ((nrow(clair) > 0 && nrow(NanoCaller) > 0)) {
+if ((nrow(clair) > 0 && nrow(DeepVariant) > 0)) {
   clairdf <- as.data.frame.matrix(clair) %>%
     select(-c("allele.frequency")) %>%
     rename("Clair3.quality" = "quality", "Clair3.read.depth" = "read.depth")
-  medakadf <- as.data.frame.matrix(medaka) %>%
-    select(-c("log2.depth.by.strand")) %>%
-    rename("Medaka.quality" = "quality", "Medaka.read.depth" = "read.depth")
+  # medakadf <- as.data.frame.matrix(medaka) %>%
+  #   select(-c("log2.depth.by.strand")) %>%
+  #   rename("Medaka.quality" = "quality", "Medaka.read.depth" = "read.depth")
+  # NanoCallerdf <- as.data.frame.matrix(NanoCaller) %>%
+  #   select(-c("allele.frequency")) %>%
+  #   rename("NanoCaller.quality" = "quality", "NanoCaller.read.depth" = "read.depth")
+  DeepVariant <- as.data.frame.matrix(DeepVariant) %>%
+    select(-c("allele.frequency")) %>%
+    rename("DeepVariant.quality" = "quality", "DeepVariant.read.depth" = "read.depth")
   commonsnvs <- clairdf %>%
-    inner_join(medakadf, by = c("contig", "position", "type", "ref.allele", "alt.allele"))
+    # inner_join(medakadf, by = c("contig", "position", "type", "ref.allele", "alt.allele")) %>%
+    # inner_join(NanoCallerdf, by = c("contig", "position", "type", "ref.allele", "alt.allele")) %>%
+    inner_join(DeepVariant, by = c("contig", "position", "type", "ref.allele", "alt.allele"))
   DT::datatable(
     commonsnvs,
-    colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "Clair3 quality score", "Clair3 read depth", "Medaka quality score", "Medaka read depth"),
+    # colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "Clair3 quality score", "Clair3 read depth", "Medaka quality score", "Medaka read depth"),
+    # colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "Clair3 quality score", "Clair3 read depth", "Medaka quality score", "Medaka read depth", "NanoCaller quality score", "NanoCaller read depth"),
+    # colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "Clair3 quality score", "Clair3 read depth", "NanoCaller quality score", "NanoCaller read depth", "DeepVariant quality score", "DeepVariant read depth"),
+    colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "Clair3 quality score", "Clair3 read depth", "DeepVariant quality score", "DeepVariant read depth"),
     filter = "top",
     options = 
       list(
@@ -491,7 +661,9 @@ if ((nrow(clair) > 0 && nrow(medaka) > 0)) {
       )
   )
 } else {
-  cat("No common variants detected by Clair3 and Medaka")
+  # cat("No common variants detected by Clair3, Medaka and NanoCaller")
+  # cat("No common variants detected by Clair3, NanoCaller and DeepVariant")
+  cat("No common variants detected by Clair3 and DeepVariant")
 }
 ```
 
@@ -568,7 +740,7 @@ get_sv_details <- function(x, what) {
 ### cuteSV
 
 cuteSV is a structural variant caller designed for long-read sequencing data (see [here](https://doi.org/10.1186/s13059-020-02107-y) and [here](https://github.com/tjiangHIT/cuteSV)).
-cuteSV (v2.1.0) was run on NGMLR-aligned reads using standard settings suggested for ONT data:
+cuteSV (v2.1.0) was run on `r paste(snakemake@config[["aligner"]])`-aligned reads using standard settings suggested for ONT data:
 
 ```
 cuteSV `r paste(snakemake@config[["cutesv"]][["params"]])`
@@ -659,7 +831,7 @@ if (nrow(cutesv) > 0) {
 
 ### Sniffles
 
-Sniffles2 is a structural variant caller designed for long-read sequencing data aligned with the long-read mapper NGMLR (see [here](https://doi.org/10.1038/s41592-018-0001-7) for the original Sniffles / NGMLR publication,
+Sniffles2 is a structural variant caller designed for long-read sequencing data aligned with the long-read mapper `r paste(snakemake@config[["aligner"]])` (see [here](https://doi.org/10.1038/s41592-018-0001-7) for the original Sniffles,
 [here](https://doi.org/10.1038/s41587-023-02024-y) for the Sniffles2 update, and [here](https://github.com/fritzsedlazeck/Sniffles) for more information).
 Sniffles (v2.2) was run using standard settings:
 
@@ -753,6 +925,80 @@ if (nrow(sniffles) > 0) {
 
 ***
 
+## Breseq
+
+[Breseq](https://github.com/barricklab/breseq) is a complete pipeline for filtering, mapping reads; then calling and annotating mutations for bacterial re-sequencing studies. It is developed for using high quality short reads. Recently, long read (pseudo-)support is added with a workaround to chop reads down to 200bp (or selected configuration). 
+```{r breseq, echo=FALSE, results = 'asis'}
+# Functions for re-formatting variant information from Breseq VCF file.
+# Breseq reports the called mutation frequency at "1.)" for consensus if the actual frequency is over the cut-off selected (0.80 by default). Remaining mutation calls are reported as marginal.
+get_info_for_breseq <- function(x, type) {
+  # Split the info field by semicolons into individual key-value pairs
+  info_pairs <- strsplit(x["info"], ";")[[1]]
+  
+  # Create a named list by splitting each key-value pair at the '=' character
+  info_list <- setNames(sapply(info_pairs, function(pair) strsplit(pair, "=")[[1]][2]),
+                        sapply(info_pairs, function(pair) strsplit(pair, "=")[[1]][1]))
+  
+  # Return the requested value as numeric if it exists, otherwise NA
+  if (type %in% names(info_list)) {
+    return(as.numeric(info_list[type]))
+  } else {
+    return(NA)  # Return NA if the requested type is not available
+  }
+}
+
+# Import of breseq VCF file
+# Read all columns as character to prevent initial type mismatch errors
+breseq <- read.table(as.character(snakemake@input[["breseq"]]), sep = "\t", header = F,
+  col.names = c("contig", "position", "ID", "ref.allele", "alt.allele", "quality", "filter", "info"),
+  colClasses = "character")
+# Convert columns to their intended types
+breseq$contig <- as.character(breseq$contig)
+breseq$position <- as.integer(breseq$position)
+breseq$ID <- as.character(breseq$ID)
+breseq$ref.allele <- as.character(breseq$ref.allele)
+breseq$alt.allele <- as.character(breseq$alt.allele)
+breseq$filter <- as.character(breseq$filter)
+breseq$info <- as.character(breseq$info)
+# Convert quality column, treating "." as NA since breseq leaves . in case of longer deletions, insertions for quality.
+breseq$quality <- as.numeric(ifelse(breseq$quality == ".", NA, breseq$quality))
+if (nrow(breseq) > 0) {
+  breseq$read.depth <- apply(breseq, 1, get_info_for_breseq, type = "DP")
+  breseq$allele.frequency <- apply(breseq, 1, get_info_for_breseq, type = "AF")
+  breseq$ID <- breseq$filter <- breseq$info <- NULL
+  breseq$type <- apply(breseq, 1, determine_snv_type)
+  breseq <- breseq[,c(1,2,8,3,4,5,6,7)]
+  # Create output table
+  DT::datatable(
+    breseq,
+    colnames = c("ID", "contig", "position", "type", "reference allele", "variant allele", "quality", "read depth", "variant allele frequency (%)"),
+    filter = "top",
+    options = 
+      list(
+        pageLength = 50,
+        searchCols = list(NULL, NULL, NULL, NULL, NULL, NULL, list(search = '10 ... '), list(search = '10 ... '), NULL )
+      )
+  ) %>%
+  formatStyle(
+    "quality",
+    backgroundColor = styleInterval(c(2:20), create_gradient(c(2:20), "0,255,0"))
+  ) %>%
+  formatStyle(
+    "read.depth",
+    backgroundColor = styleInterval(10, create_gradient(c(10), "0,255,0"))
+  ) %>%
+  formatStyle(
+    "allele.frequency",
+    backgroundColor = styleInterval(80, create_gradient(c(80), "0,255,0"))
+  )
+} else {
+  cat("No variants detected by breseq")
+}
+```
+
+
+***
+
 ## Pre-filtering of reported variants {.tabset}
 
 ### By variant quality
@@ -764,7 +1010,9 @@ qvalues <- snakemake@config[["quality_threshold"]]
 ```
 
 * Clair3: `r qvalues$clair3`
-* Medaka: `r qvalues$medaka`
+<!-- * Medaka: `r qvalues$medaka` -->
+<!-- * Nanocaller: `r qvalues$NanoCaller` -->
+* DeepVariant: `r qvalues$DeepVariant`
 * cuteSV: `r qvalues$cutesv`
 * Sniffles2: `r qvalues$sniffles2`
 
@@ -833,23 +1081,70 @@ if (snakemake@config[["remove_common_variants"]]) {
 }
 ```
 
-#### Medaka
-```{r shared-medaka, echo=FALSE, warning=FALSE, results = 'asis'}
+<!-- #### Medaka
+# ```{r shared-medaka, echo=FALSE, warning=FALSE, results = 'asis'}
+# if (snakemake@config[["remove_common_variants"]]) {
+#   sharedByMedaka <- read.table(as.character(sharedVariantList[[2]]), sep = "\t", header = F,,
+#     col.names = c("contig", "position", "ID", "ref.allele", "alt.allele", "quality", "filter", "info", "format", "sample"),
+#     colClasses = c("character", "integer", "character", "character", "character", "numeric", "character", "character", "character", "character"))
+#   if (nrow(sharedByMedaka) > 0) {
+#     sharedByMedaka$type <- apply(sharedByMedaka, 1, determine_snv_type)
+#     sharedByMedaka <- sharedByMedaka[,c(1,2,11,4,5)]
+#     DT::datatable(
+#         sharedByMedaka,
+#         colnames = c("contig", "position", "type", "reference allele", "variant allele"),
+#         filter = "top",
+#         options = list(pageLength = 10)
+#       )
+#   } else {
+#     cat("No common variants detected for all samples by Medaka.\n")
+#   }
+# } else{
+#   cat("No filtering by shared variants enabled!")
+# }
+# ``` -->
+
+<!-- #### NanoCaller
+# ```{r shared-NanoCaller, echo=FALSE, warning=FALSE, results = 'asis'}
+# if (snakemake@config[["remove_common_variants"]]) {
+#   sharedByNanoCaller <- read.table(as.character(sharedVariantList[[2]]), sep = "\t", header = F,,
+#     col.names = c("contig", "position", "ID", "ref.allele", "alt.allele", "quality", "filter", "info", "format", "sample"),
+#     colClasses = c("character", "integer", "character", "character", "character", "numeric", "character", "character", "character", "character"))
+#   if (nrow(sharedByNanoCaller) > 0) {
+#     sharedByNanoCaller$type <- apply(sharedByNanoCaller, 1, determine_snv_type)
+#     sharedByNanoCaller <- sharedByNanoCaller[,c(1,2,11,4,5)]
+#     DT::datatable(
+#         sharedByNanoCaller,
+#         colnames = c("contig", "position", "type", "reference allele", "variant allele"),
+#         filter = "top",
+#         options = list(pageLength = 10)
+#       )
+#   } else {
+#     cat("No common variants detected for all samples by NanoCaller.\n")
+#   }
+# } else{
+#   cat("No filtering by shared variants enabled!")
+# }
+# ``` 
+-->
+
+#### DeepVariant
+```{r shared-DeepVariant, echo=FALSE, warning=FALSE, results = 'asis'}
 if (snakemake@config[["remove_common_variants"]]) {
-  sharedByMedaka <- read.table(as.character(sharedVariantList[[2]]), sep = "\t", header = F,,
+  sharedByDeepVariant <- read.table(as.character(sharedVariantList[[1]]), sep = "\t", header = F,
     col.names = c("contig", "position", "ID", "ref.allele", "alt.allele", "quality", "filter", "info", "format", "sample"),
     colClasses = c("character", "integer", "character", "character", "character", "numeric", "character", "character", "character", "character"))
-  if (nrow(sharedByMedaka) > 0) {
-    sharedByMedaka$type <- apply(sharedByMedaka, 1, determine_snv_type)
-    sharedByMedaka <- sharedByMedaka[,c(1,2,11,4,5)]
+  if (nrow(sharedByDeepVariant) > 0) {
+    sharedByDeepVariant$type <- apply(sharedByDeepVariant, 1, determine_snv_type)
+    sharedByDeepVariant <- sharedByDeepVariant[,c(1,2,11,4,5)]
     DT::datatable(
-        sharedByMedaka,
+        sharedByDeepVariant,
         colnames = c("contig", "position", "type", "reference allele", "variant allele"),
         filter = "top",
         options = list(pageLength = 10)
       )
   } else {
-    cat("No common variants detected for all samples by Medaka.\n")
+    cat("No common variants detected for all samples by DeepVariant.\n")
   }
 } else{
   cat("No filtering by shared variants enabled!")

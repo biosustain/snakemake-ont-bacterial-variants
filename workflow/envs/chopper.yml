@@ -1,6 +1,6 @@
-name: clair3
+name: filtlong
 channels:
   - conda-forge
   - bioconda
 dependencies:
-  - clair3=1.0.10
+  - chopper=0.9.0

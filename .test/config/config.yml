@@ -10,43 +10,108 @@ samples: samplesheet/samples.tsv
 libprepkit: SQK-NBD114.24
 basecalling_model: r1041_e82_400bps_sup_v4.3.0
 
+### Filtering
+# Options are filtlong and chopper.
+filtering: "filtlong"
+
+### Aligner
+# Options are minimap2 and ngmlr.
+# Current version of minimap2 doesn't support circular references. While ngmlr has 
+# mention of circular reference genome in one commit, I see low coverage at fasta 
+# refence beginning and end. No other long read aligner with circular reference support
+# have been found.
+aligner: "minimap2"
+
 ### Tool parameters
 filtlong:
   params:
     - "--min_length 500"
     - "--min_mean_q 90"
     - "--keep_percent 90"
+chopper:
+  params:
+  # chopper rule is not set properly to use --contam paramter as it would require a 
+  # fasta file input for contaminant.
+    - "-q 15"
+    - "-l 500"
+  threads: 4
 ngmlr:
-  threads: 20
+  threads: 8
+  params:
+    - "--no-progress"
+minimap2:
+  threads: 8
+  params:
+    - "-Y"
 nanoplot:
-  threads: 5
+  threads: 4
 multiqc:
-  threads: 5
+  threads: 4
 medaka:
-  threads: 10
+  threads: 8
 clair3:
-  threads: 10
+  threads: 8
   params:
     - "--include_all_ctgs"
-    - "--haploid_sensitive"
+    - "--haploid_precise"
     - "--platform ont"
+    - "--remove_intermediate_dir"
+NanoCaller:
+  threads: 8
+  params:
+    - "--haploid_genome"
+    - "--preset ont"
+    - "--mode all"
+    - "--mincov 10"
+    - "--suppress_progress_bar"
+    - "--min_allele_freq 0.75"
+DeepVariant:
+  threads: 8
+  params:
+    - "--model_type=ONT_R104"
 sniffles2:
-  threads: 10
+  threads: 8
+  params:
+  - "--qc-coverage 2"
 cutesv:
-  threads: 10
+  threads: 8
   params:
     - "--max_cluster_bias_INS 100"
     - "--diff_ratio_merging_INS 0.3"
     - "--max_cluster_bias_DEL 100"
     - "--diff_ratio_merging_DEL 0.3"
     - "--genotype"  
+breseq:
+  threads: 8
+  params:
+    - "--polymorphism-prediction"
+    - "--polymorphism-frequency-cutoff 0.1"
+    - "--polymorphism-minimum-variant-coverage 5"
+    - "--polymorphism-minimum-variant-coverage-each-strand 1"
+    - "--base-quality-cutoff 10"
+    - "--consensus-frequency-cutoff 1.0"
+    - "--consensus-minimum-variant-coverage 10"
+    - "--consensus-minimum-variant-coverage-each-strand 2"
+    - "--brief-html-output"
+    # - "--keep-intermediates"
+    - "--cnv"
 
 ### Variant filtering
 quality_threshold:
   medaka: 10
   clair3: 5
+  NanoCaller: 20
   sniffles2: 10
   cutesv: 5
+  DeepVariant: 20
+  breseq: 10
+frequency_threshold:
+  clair3: .75
+  DeepVariant: .75
+  sniffles2: .75
+  cutesv: .75
+  breseq: .75
+
 remove_common_variants: False
 
 ### Report

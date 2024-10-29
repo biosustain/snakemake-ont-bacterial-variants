@@ -3,8 +3,11 @@ import pandas as pd
 
 def read_vcf(vcffile):
     out = []
-    columnnames = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER",
-                   "INFO", "FORMAT", "SAMPLE"]
+    if "breseq" in vcffile:
+        columnnames = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
+    else:
+        columnnames = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO",
+                       "FORMAT", "SAMPLE"]
     with open(vcffile, "r") as infile:
         for line in infile:
             line = line.strip()
@@ -30,17 +33,26 @@ def determine_type(series):
     return(vartype)
 
 # Import VCF files
-medaka = read_vcf(snakemake.input["medaka"])
-medaka["TOOL"] = ["Medaka" for i in range(medaka.shape[0])]
+# medaka = read_vcf(snakemake.input["medaka"])
+# medaka["TOOL"] = ["Medaka" for i in range(medaka.shape[0])]
 clair = read_vcf(snakemake.input["clair"])
 clair["TOOL"] = ["Clair3" for i in range(clair.shape[0])]
+# NanoCaller = read_vcf(snakemake.input["NanoCaller"])
+# NanoCaller["TOOL"] = ["NanoCaller" for i in range(NanoCaller.shape[0])]
+DeepVariant = read_vcf(snakemake.input["DeepVariant"])
+DeepVariant["TOOL"] = ["DeepVariant" for i in range(DeepVariant.shape[0])]
 sniffles = read_vcf(snakemake.input["sniffles"])
 sniffles["TOOL"] = ["Sniffles" for i in range(sniffles.shape[0])]
 cutesv = read_vcf(snakemake.input["cutesv"])
 cutesv["TOOL"] = ["cuteSV" for i in range(cutesv.shape[0])]
+breseq = read_vcf(snakemake.input["breseq"])
+breseq["TOOL"] = ["breseq" for i in range(breseq.shape[0])]
+
 
 # Merge and sort variant information
-df = pd.concat([medaka, clair, sniffles, cutesv], ignore_index = True)
+# df = pd.concat([medaka, clair, NanoCaller, sniffles, cutesv], ignore_index = True)
+# df = pd.concat([clair, NanoCaller, DeepVariant, sniffles, cutesv, breseq], ignore_index = True)
+df = pd.concat([clair, DeepVariant, sniffles, cutesv, breseq], ignore_index = True)
 df["POS"] = pd.to_numeric(df["POS"])
 df = df.sort_values(by = ["CHROM", "POS"])
 df["TYPE"] = df.apply(determine_type, axis = 1)

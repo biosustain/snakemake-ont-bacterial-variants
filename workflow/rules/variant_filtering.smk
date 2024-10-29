@@ -1,3 +1,26 @@
+# --------------------------------------------------------------------------- #
+# Prefilter variants on frequency                                             #
+# --------------------------------------------------------------------------- #
+rule prefilter_variants_clair:
+    """Frequency filtering for variants"""
+    message:
+        "--- Frequency filtering for variants"
+    input:
+        vcf=os.path.join(outdir, "{vartype}/{tool}/{sample}.vcf"),
+    output:
+        os.path.join(outdir, "{vartype}/{tool}/{sample}.prefiltered.vcf"),
+    log:
+        os.path.join(outdir, "{vartype}/{tool}/logs/{sample}_prefiltering.log"),
+    params:
+        prefix=lambda x, input: os.path.splitext(str(input.vcf))[0],
+        minf=get_frequency_filtering_parameters,
+    conda:
+        "../envs/bcftools.yml"
+    shell:
+        "bcftools view "
+        "{params.minf} "
+        "{input.vcf}  > {output}"
+
 if config["remove_common_variants"] and len(SAMPLES) > 1:
 
     # --------------------------------------------------------------------------- #
@@ -8,7 +31,8 @@ if config["remove_common_variants"] and len(SAMPLES) > 1:
         message:
             "--- Identification of common variants: VCF file indexing"
         input:
-            os.path.join(outdir, "{vartype}/{tool}/{sample}.vcf"),
+            # os.path.join(outdir, "{vartype}/{tool}/{sample}.vcf"),
+            os.path.join(outdir, "{vartype}/{tool}/{sample}.prefiltered.vcf"),
         output:
             compressed=temp(os.path.join(outdir, "{vartype}/{tool}/{sample}.vcf.gz")),
             indexed=temp(os.path.join(outdir, "{vartype}/{tool}/{sample}.vcf.gz.tbi")),
@@ -79,7 +103,8 @@ if config["remove_common_variants"] and len(SAMPLES) > 1:
         message:
             "--- Filtering variants"
         input:
-            vcf=os.path.join(outdir, "{vartype}/{tool}/{sample}.vcf"),
+            # vcf=os.path.join(outdir, "{vartype}/{tool}/{sample}.vcf"),
+            vcf=os.path.join(outdir, "{vartype}/{tool}/{sample}.prefiltered.vcf"),
             commonvars=os.path.join(outdir, "{vartype}/{tool}/common_variants.txt"),
         output:
             os.path.join(outdir, "{vartype}/{tool}/{sample}.filtered.vcf"),
@@ -94,16 +119,16 @@ if config["remove_common_variants"] and len(SAMPLES) > 1:
         shell:
             "if [ -f '{params.bed}' ]; then "
             "vcftools "
+            "--vcf {input.vcf} "
             "--exclude-positions {input.commonvars} "
             "--minQ {params.minq} "
-            "--vcf {input.vcf} "
             "--recode "
             "--keep-INFO-all "
             "--stdout "
             "2> {log} | "
             "vcftools "
-            "--exclude-bed {params.bed} "
             "--vcf - "
+            "--exclude-bed {params.bed} "
             "--recode "
             "--keep-INFO-all "
             "--out {params.prefix} "
@@ -111,9 +136,9 @@ if config["remove_common_variants"] and len(SAMPLES) > 1:
             "mv {params.prefix}.recode.vcf {output}; "
             "else "
             "vcftools "
+            "--vcf {input.vcf} "
             "--exclude-positions {input.commonvars} "
             "--minQ {params.minq} "
-            "--vcf {input.vcf} "
             "--recode "
             "--keep-INFO-all "
             "--out {params.prefix} "
@@ -132,7 +157,7 @@ else:
         message:
             "--- Filtering variants"
         input:
-            vcf=os.path.join(outdir, "{vartype}/{tool}/{sample}.vcf"),
+            vcf=os.path.join(outdir, "{vartype}/{tool}/{sample}.prefiltered.vcf"),
         output:
             os.path.join(outdir, "{vartype}/{tool}/{sample}.filtered.vcf"),
         log:
@@ -146,9 +171,9 @@ else:
         shell:
             "if [ -f '{params.bed}' ]; then "
             "vcftools "
+            "--vcf {input.vcf} "
             "--exclude-bed {params.bed} "
             "--minQ {params.minq} "
-            "--vcf {input.vcf} "
             "--recode "
             "--keep-INFO-all "
             "--out {params.prefix} "
@@ -156,8 +181,8 @@ else:
             "mv {params.prefix}.recode.vcf {output}; "
             "else "
             "vcftools "
-            "--minQ {params.minq} "
             "--vcf {input.vcf} "
+            "--minQ {params.minq} "
             "--recode "
             "--keep-INFO-all "
             "--out {params.prefix} "

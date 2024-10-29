@@ -2,9 +2,13 @@
 
 ![Platform](https://img.shields.io/badge/platform-all-green)
 [![Snakemake](https://img.shields.io/badge/snakemake-≥6.3.0-brightgreen.svg)](https://snakemake.github.io)
-[![Tests](https://github.com/MPUSP/snakemake-ont-bacterial-variants/actions/workflows/main.yml/badge.svg)](https://github.com/MPUSP/snakemake-ont-bacterial-variants/actions/workflows/main.yml)
+<!-- [![Tests](https://github.com/MPUSP/snakemake-ont-bacterial-variants/actions/workflows/main.yml/badge.svg)](https://github.com/MPUSP/snakemake-ont-bacterial-variants/actions/workflows/main.yml) -->
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
 [![workflow catalog](https://img.shields.io/badge/Snakemake%20workflow%20catalog-darkgreen)](https://snakemake.github.io/snakemake-workflow-catalog)
+
+> **WARNING**: The original repository has a restrictive license (unchanged here). Do not make this version of the repository public as it could be considered against "No distribution" clause. Do not share.
+
+> **WARNING**: This workflow contains rules and elements not used for the final output as many options have been tried. They need to be trimmed out for a final product.
 
 A Snakemake workflow for the identification of variants in bacterial genomes using nanopore long-read sequencing.
 
@@ -19,18 +23,22 @@ If you use this workflow in a paper, don't forget to give credits to the authors
 This workflow provides a simple and easy-to-use framework for the identification of structural and small nucleotide variants in bacterial genomes using nanopore long-read sequencing data. 
 The `snakemake-ont-bacterial-variants` workflow is built using [snakemake](https://snakemake.readthedocs.io/en/stable/) and consists of the following steps:
 
-1. Quality check of sequencing data (`FastQC`)
-2. Filtering of input sequencing data by read length and quality (`Filtlong`)
-3. Mapping to reference genome (`NGMLR`)
-4. Calling of structural and single nucleotide variants (SVs: `cuteSV` and `Sniffles2`; SNVs: `Clair3` and `Medaka`)
+1. Quality check of sequencing data (`NanoPlot`)
+2. Filtering of input sequencing data by read length and quality (`Filtlong` or `chopper`)
+3. Mapping to reference genome (`minimap2` or `NGMLR`)
+4. Calling of structural and single nucleotide variants (SVs: `cuteSV` and `Sniffles2`; SNVs: `Clair3` and `DeepVariant`)
 5. Filtering of identified variants (e.g., by variant quality or genomic regions; `BCFtools` and `VCFtools`)
 6. Generate report with final results (`R markdown`, `igv-reports`, and `MultiQC`) 
+
+In addition, breseq is run and presented on overview/IGV reports as an independent comparison.
 
 If you would like to contribute, report issues, or suggest features, please get in touch on [GitHub](https://github.com/MPUSP/snakemake-ont-bacterial-variants).
 
 ## Installation
 
 ### Snakemake
+
+Step 0: Install apptainer based on guide [here](https://apptainer.org/docs/admin/main/installation.html#installation-on-linux). There is a conda based installation option as well that can be included in the snakemake environment that follows, but it is not tested.
 
 Step 1: Install snakemake with `conda` in a new conda environment.
 
@@ -48,22 +56,24 @@ conda activate <ENV>
 
 **Important note:**
 
-All other dependencies for the workflow are **automatically pulled as `conda` environments** by snakemake, when running the workflow with the `--use-conda` parameter (recommended).
+All other dependencies for the workflow are **automatically pulled as `conda` environments** by snakemake, when running the workflow with the `--use-conda` parameter (recommended). Only exception is `DeepVariant` and it is pulled as container, when running the workflow with the `--use-apptainer` parameter (recommended).
 
 When run without automatically built `conda` environments, all packages need to be installed manually:
 - `NanoPlot`
 - `MultiQC`
 - `Filtlong`
-- `NGMLR`
+- `chopper`
 - `minimap2`
+- `NGMLR`
 - `samtools`
 - `bedtools`
-- `Medaka`
 - `Clair3`
+- `DeepVariant`
 - `cuteSV`
 - `Sniffles2`
 - `bcftools`
 - `VCFtools`
+- `breseq`
 - `r-tidyverse`
 - `r-rmarkdown`
 - `r-dt`
@@ -146,6 +156,20 @@ You may also run the workflow on the provided test data using:
 ```
 snakemake --cores 10 --use-conda --directory .test
 ```
+
+It might be beneficial to run `snakemake` with the following flags:
+
+```
+snakemake \
+   --cores all \
+   --use-conda \
+   --conda-frontend conda \
+   --conda-prefix /home/YOUR_HOME_PATH/miniconda3/envs \
+   --use-apptainer \
+   --apptainer-prefix /home/YOUR_HOME_PATH/apptainer 
+```
+
+
 
 ## Output
 

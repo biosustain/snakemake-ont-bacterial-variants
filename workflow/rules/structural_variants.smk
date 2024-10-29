@@ -14,6 +14,8 @@ rule sniffles2:
     log:
         os.path.join(outdir, "SV/sniffles2/logs/{sample}.log"),
     threads: config["sniffles2"]["threads"]
+    params:
+        " ".join(config["sniffles2"]["params"]),
     conda:
         "../envs/sniffles2.yml"
     shell:

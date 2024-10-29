@@ -35,8 +35,27 @@ def get_fastq(wildcards):
     return SAMPLEINFO.loc[wildcards.sample, "fastq"]
 
 
-def get_reference(wildcards):
+def get_original_reference(wildcards):
     return SAMPLEINFO.loc[wildcards.sample, "reference"]
+
+
+def get_reference(wildcards):
+    return os.path.join(outdir, "inputs", os.path.splitext(os.path.basename(SAMPLEINFO.loc[wildcards.sample, "reference"]))[0] + ".fa")
+
+
+def get_reference_fai(wildcards):
+    return get_reference(wildcards) + ".fai"
+
+
+def get_contig_ids_from_reference(wildcards):
+    """Specific input for deepvariant"""
+    contig_ids = []
+    with open(get_reference(wildcards), "r") as f:
+        for line in f:
+            if line.startswith(">"):
+                contig_id = line[1:].split()[0]  # Extract ID after '>' and split at whitespace
+                contig_ids.append(contig_id)
+    return "\""+",".join(contig_ids)+"\""
 
 
 def get_annotation(wildcards):
@@ -65,7 +84,7 @@ def get_medaka_model(wildcards):
 
 
 def get_vcf(wildcards):
-    assigntype = {"medaka": "SNV", "clair3": "SNV", "cutesv": "SV", "sniffles2": "SV"}
+    assigntype = {"medaka": "SNV", "clair3": "SNV", "NanoCaller": "SNV", "cutesv": "SV", "sniffles2": "SV"}
     return os.path.join(outdir, assigntype[wildcards.tool], "{tool}/{sample}.vcf")
 
 
@@ -77,9 +96,26 @@ def get_shared_variants(wildcards):
     if config["remove_common_variants"] and len(SAMPLES) > 1:
         return [
             str(os.path.join(outdir, "SNV/clair3/common_variants.vcf")),
-            str(os.path.join(outdir, "SNV/medaka/common_variants.vcf")),
+            # str(os.path.join(outdir, "SNV/medaka/common_variants.vcf")),
+            # str(os.path.join(outdir, "SNV/NanoCaller/common_variants.vcf")),
+            str(os.path.join(outdir, "SNV/DeepVariant/common_variants.vcf")),
             str(os.path.join(outdir, "SV/cutesv/common_variants.vcf")),
             str(os.path.join(outdir, "SV/sniffles2/common_variants.vcf")),
+            str(os.path.join(outdir, "SNV/breseq/common_variants.vcf")),
         ]
     else:
         return ()
+
+def get_frequency_filtering_parameters(wildcards):
+    if wildcards.tool == "clair3":
+        return f"-i 'FORMAT/AF >= {config["frequency_threshold"][wildcards.tool]}'"
+    elif wildcards.tool == "DeepVariant":
+        return f"-i 'FORMAT/VAF >= {config["frequency_threshold"][wildcards.tool]}'"
+    elif wildcards.tool == "sniffles2":
+        return f"-i 'INFO/AF >= {config["frequency_threshold"][wildcards.tool]}'"
+    elif wildcards.tool == "cutesv":
+        return f"-i 'INFO/AF >= {config["frequency_threshold"][wildcards.tool]}'"
+    elif wildcards.tool == "breseq":
+        return f"-i 'INFO/AF >= {config["frequency_threshold"][wildcards.tool]}'"
+
+        

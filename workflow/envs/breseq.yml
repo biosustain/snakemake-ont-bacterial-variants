@@ -1,6 +1,6 @@
-name: clair3
+name: bcftools
 channels:
   - conda-forge
   - bioconda
 dependencies:
-  - clair3=1.0.10
+  - breseq=0.39.0

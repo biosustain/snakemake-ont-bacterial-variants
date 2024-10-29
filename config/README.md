@@ -38,10 +38,11 @@ Before executing the workflow, you may want to adjust several options and parame
    * `basecalling_model`: Model used for basecalling of raw sequencing data (required for variant calling using `Medaka`), currently supported models are:
       * `r1041_e82_400bps_sup_v4.2.0`
       * `r1041_e82_400bps_sup_v4.3.0`
-3. Tool parameters:
-   * The number of cores can be adjusted here for the following tools: `NGMLR`, `NanoPlot`, `MultiQC`, `Medaka`, `Clair3`, `Sniffles2`, and `cuteSV`
+3. Tool parameters: #TODO: update these parameters before merging.
+   * The number of cores can be adjusted here for the following tools: `NGMLR`/`minimap2`, `chopper`, `NanoPlot`, `MultiQC`, `Medaka`, `Clair3`, `Sniffles2`, and `cuteSV`
    * You may further adjust the run parameters for the following tools (please refer to the reference provided for more details on run parameters):
-      * `Filtlong`: By default, reads are filtered for a minimum length of 500 bp and a mean accuracy of at least 90% (Q10), with 90% of the longest and highest-quailty reads to be kept.
+      * `Filtlong` or `chopper` can be selected for read filtering.
+      * `ngmlr` or `minimap2` can be selected for mapping.
       * `Clair3`: Variants are called on all contigs in a haploid-sensitive, ONT-specific mode using `--include_all_ctgs --haploid_sensitive --platform ont`.
       * `cuteSV`: Variants are called with the suggested parameters for ONT data (`--max_cluster_bias_INS 100 --diff_ratio_merging_INS 0.3 --max_cluster_bias_DEL 100 --diff_ratio_merging_DEL 0.3`) and the genotyping option enabled (`--genotype`). 
 4. Filtering of variants:

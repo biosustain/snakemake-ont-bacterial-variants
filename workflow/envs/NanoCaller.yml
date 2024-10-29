@@ -3,4 +3,5 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - medaka=2.0.1
+  - nanocaller=3.6.0
+  - tensorflow=2.15.0

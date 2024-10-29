@@ -1,4 +1,5 @@
-results/**
+projects
+results*/**
 data/**
 .test/results/**
 .test/data/**
@@ -8,3 +9,7 @@ logs/**
 .snakemake/**
 workflow/.snakemake
 workflow/.snakemake/**
+TESTING.md
+.keras/keras.json
+.parallel/tmp/linelen-avm-sdt-emoz-ica
+.vscode/settings.json
