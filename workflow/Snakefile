@@ -62,4 +62,6 @@ rule test:
         # expand(os.path.join(outdir, "variant_reports/MEK560/MEK560_overview.html")),
         # expand(os.path.join(outdir, "SNV/DeepVariant/{sample}.vcf"), sample=SAMPLES),
         # os.path.join(outdir, "inputs", "CP012712.1.fa.fai"),
-        os.path.join(outdir, "inputs", "CP012712.1-THL-Tle-Cac.fa.fai"),
+        # os.path.join(outdir, "inputs", "CP012712.1-THL-Tle-Cac.fa.fai"),
+        # expand(os.path.join(outdir, "variant_reports/group_{group}/comparison.html"), group=SAMPLEINFO.group.unique()),
+        expand(os.path.join(outdir, "variant_reports/group_{group}/comparison.html"), group=[1, 2])

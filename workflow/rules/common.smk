@@ -6,7 +6,16 @@ import pandas as pd
 # General helper functions                                                    #
 # --------------------------------------------------------------------------- #
 def read_sample_sheet():
-    samples = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
+    samples = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)    
+    # Create temporary columns to fill NaN only for grouping purposes
+    samples["_annotation"] = samples["annotation"].fillna("none")
+    samples["_masked_regions"] = samples["masked_regions"].fillna("none")
+    # assign groups for annotated comparison for each unique set of reference, 
+    # annotation and masked_regions combinations
+    samples["group"] = samples.groupby(["reference", "_annotation", "_masked_regions"]).ngroup() + 1
+    samples["group"] = samples["group"].astype(str)
+    # Drop the temporary columns to restore original NaN values
+    samples = samples.drop(columns=["_annotation", "_masked_regions"])
     return samples
 
 
@@ -19,13 +28,13 @@ def list_reference_genomes():
         if not ident in genomes.keys():
             genomes[ident] = path
     return genomes
-
+    
 
 def generate_results(wildcards):
     return [
         os.path.join(outdir, f"variant_reports/{sample}/{sample}_overview.html")
         for sample in SAMPLES
-    ]
+    ] + [os.path.join(outdir, f"variant_reports/group_{group}/comparison.html") for group in SAMPLEINFO.group.unique()]
 
 
 # --------------------------------------------------------------------------- #
@@ -118,4 +127,32 @@ def get_frequency_filtering_parameters(wildcards):
     elif wildcards.tool == "breseq":
         return f"-i 'INFO/AF >= {config["frequency_threshold"][wildcards.tool]}'"
 
+
+def get_group_reference(wildcards):
+    reference = SAMPLEINFO[SAMPLEINFO['group'] == wildcards.group].reference.unique()
+    if len(reference) == 1:
+        return reference[0]
+    else:
+        print(reference)
+        raise ValueError(f"Multiple or no references found for group {wildcards.group}")
+
+def get_group_annotation(wildcards):
+    gff = SAMPLEINFO[SAMPLEINFO['group'] == wildcards.group].annotation.unique()
+    if len(gff) == 1:
+        return gff[0]
+    else:
+        raise ValueError(f"Multiple or no annotations found for group {wildcards.group}")
+
+def get_group_gd_files(wildcards):
+    import os
+
+
+def get_group_gd_files(wildcards):
+    group_samples = SAMPLEINFO[SAMPLEINFO['group'] == wildcards.group]["sample"].tolist()
+    gd_files = [
+        os.path.join(outdir, f"variant_reports/{sample}/{sample}.{tool}.gd")
+        for sample in group_samples
+        for tool in ["breseq", "clair3", "DeepVariant", "cutesv", "sniffles2"]
         
+    ]    
+    return gd_files

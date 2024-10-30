@@ -42,17 +42,17 @@ rule gdtools_compare:
         "--- Compare variants with gdtools"
     input:
         # gd_files=expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd"), sample=SAMPLES, tool=["breseq", "clair3", "medaka", "NanoCaller", "cutesv", "sniffles2"]),
-        gd_files=expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd"), sample=SAMPLES, tool=["breseq", "clair3", "NanoCaller", "DeepVariant",  "cutesv", "sniffles2"]),
-        # reference=get_reference,
-        # gff=get_annotation,
-        reference="data/reference/CP012712.1.fa",
-        gff="data/annotation/CP012712.1.gff",
+        # gd_files=expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd"), sample=SAMPLES, tool=["breseq", "clair3", "NanoCaller", "DeepVariant",  "cutesv", "sniffles2"]),
+        # gd_files=expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd"), sample=SAMPLES, tool=["breseq", "clair3", "DeepVariant",  "cutesv", "sniffles2"]),
+        gd_files=get_group_gd_files,
+        reference=get_group_reference,
+        gff=get_group_annotation,
     output:
-        html=os.path.join(outdir, "variant_reports/comparison.html"),
-        tsv=os.path.join(outdir, "variant_reports/comparison.tsv"),
+        html=os.path.join(outdir, "variant_reports/group_{group}/comparison.html"),
+        tsv=os.path.join(outdir, "variant_reports/group_{group}/comparison.tsv"),
     log:
-        stdout=os.path.join(outdir, "variant_reports/logs/compare.stdout"),
-        stderr=os.path.join(outdir, "variant_reports/logs/compare.stderr"),
+        stdout=os.path.join(outdir, "variant_reports/logs/group_{group}/compare.stdout"),
+        stderr=os.path.join(outdir, "variant_reports/logs/group_{group}/compare.stderr"),
     conda:
         "../envs/breseq.yml"
     shell:
@@ -67,8 +67,8 @@ rule gdtools_compare:
         "gdtools COMPARE "
         "-r {input.gff} "
         "-r {input.reference} "
-        "-f TSV "
-        "-o {output.tsv} "
+        "-f table "
+        "-o {output.csv} "
         "{input.gd_files} "
         "1> {log.stdout} "
         "2> {log.stderr}"
