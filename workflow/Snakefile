@@ -50,18 +50,3 @@ include: "rules/annotation.smk"
 rule all:
     input:
         generate_results,
-
-rule test:
-    input:
-        # expand(os.path.join(outdir, "SNV/NanoCaller/{sample}.vcf"), sample=SAMPLES),
-        # expand(os.path.join(outdir, "SNV/NanoCaller/{sample}.filtered.vcf"), sample=SAMPLES),
-        # expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.NanoCaller.vcf"), sample=SAMPLES),
-        # expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.annotated.gd"), sample=SAMPLES, tool=["clair3", "medaka", "NanoCaller", "cutesv", "sniffles2"]),
-        # expand(os.path.join(outdir, "variant_reports/comparison.{type}"), type=["html", 'tsv']),
-        # expand(os.path.join(outdir, "breseq/{sample}/data/annotated.gd"), sample=SAMPLES),
-        # expand(os.path.join(outdir, "variant_reports/MEK560/MEK560_overview.html")),
-        # expand(os.path.join(outdir, "SNV/DeepVariant/{sample}.vcf"), sample=SAMPLES),
-        # os.path.join(outdir, "inputs", "CP012712.1.fa.fai"),
-        # os.path.join(outdir, "inputs", "CP012712.1-THL-Tle-Cac.fa.fai"),
-        # expand(os.path.join(outdir, "variant_reports/group_{group}/comparison.html"), group=SAMPLEINFO.group.unique()),
-        expand(os.path.join(outdir, "variant_reports/group_{group}/comparison.html"), group=[1, 2])
