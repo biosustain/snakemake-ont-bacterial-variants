@@ -155,8 +155,9 @@ rule snv_DeepVariant:
     params:
         contigs=get_contig_ids_from_reference,
         config=" ".join(config["DeepVariant"]["params"]),
-    container: "docker://google/deepvariant:1.6.1"
-    threads: config["DeepVariant"]["threads"],
+    container:
+        "docker://google/deepvariant:1.6.1"
+    threads: config["DeepVariant"]["threads"]
     shell:
         "/opt/deepvariant/bin/run_deepvariant "
         "--ref={input.reference} "
@@ -192,7 +193,7 @@ rule breseq:
         stdout=os.path.join(outdir, "SNV/breseq/logs/{sample}.stdout"),
         stderr=os.path.join(outdir, "SNV/breseq/logs/{sample}.stderr"),
     params:
-        " ".join(config["breseq"]["params"])
+        " ".join(config["breseq"]["params"]),
     threads: config["breseq"]["threads"]
     conda:
         "../envs/breseq.yml"
@@ -207,5 +208,6 @@ rule breseq:
         "{input.reads} "
         "> {log.stdout} "
         "2> {log.stderr} && "
-        # "cp {output.annotated} {output.gd_file} && "
+
         "cp {output.out_vcf} {output.final_vcf}"
+        # "cp {output.annotated} {output.gd_file} && "

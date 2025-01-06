@@ -6,13 +6,15 @@ import pandas as pd
 # General helper functions                                                    #
 # --------------------------------------------------------------------------- #
 def read_sample_sheet():
-    samples = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)    
+    samples = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
     # Create temporary columns to fill NaN only for grouping purposes
     samples["_annotation"] = samples["annotation"].fillna("none")
     samples["_masked_regions"] = samples["masked_regions"].fillna("none")
-    # assign groups for annotated comparison for each unique set of reference, 
+    # assign groups for annotated comparison for each unique set of reference,
     # annotation and masked_regions combinations
-    samples["group"] = samples.groupby(["reference", "_annotation", "_masked_regions"]).ngroup() + 1
+    samples["group"] = (
+        samples.groupby(["reference", "_annotation", "_masked_regions"]).ngroup() + 1
+    )
     samples["group"] = samples["group"].astype(str)
     # Drop the temporary columns to restore original NaN values
     samples = samples.drop(columns=["_annotation", "_masked_regions"])
@@ -28,13 +30,16 @@ def list_reference_genomes():
         if not ident in genomes.keys():
             genomes[ident] = path
     return genomes
-    
+
 
 def generate_results(wildcards):
     return [
         os.path.join(outdir, f"variant_reports/{sample}/{sample}_overview.html")
         for sample in SAMPLES
-    ] + [os.path.join(outdir, f"variant_reports/group_{group}/comparison.html") for group in SAMPLEINFO.group.unique()]
+    ] + [
+        os.path.join(outdir, f"variant_reports/group_{group}/comparison.html")
+        for group in SAMPLEINFO.group.unique()
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -49,7 +54,14 @@ def get_original_reference(wildcards):
 
 
 def get_reference(wildcards):
-    return os.path.join(outdir, "inputs", os.path.splitext(os.path.basename(SAMPLEINFO.loc[wildcards.sample, "reference"]))[0] + ".fa")
+    return os.path.join(
+        outdir,
+        "inputs",
+        os.path.splitext(
+            os.path.basename(SAMPLEINFO.loc[wildcards.sample, "reference"])
+        )[0]
+        + ".fa",
+    )
 
 
 def get_reference_fai(wildcards):
@@ -62,9 +74,11 @@ def get_contig_ids_from_reference(wildcards):
     with open(get_reference(wildcards), "r") as f:
         for line in f:
             if line.startswith(">"):
-                contig_id = line[1:].split()[0]  # Extract ID after '>' and split at whitespace
+                contig_id = line[1:].split()[
+                    0
+                ]  # Extract ID after '>' and split at whitespace
                 contig_ids.append(contig_id)
-    return "\""+",".join(contig_ids)+"\""
+    return '"' + ",".join(contig_ids) + '"'
 
 
 def get_annotation(wildcards):
@@ -79,6 +93,7 @@ def download_model_for_clair3(wildcards):
     path2model = {
         "r1041_e82_400bps_sup_v4.2.0": "https://cdn.oxfordnanoportal.com/software/analysis/models/clair3/r1041_e82_400bps_sup_v420.tar.gz",
         "r1041_e82_400bps_sup_v4.3.0": "https://cdn.oxfordnanoportal.com/software/analysis/models/clair3/r1041_e82_400bps_sup_v430.tar.gz",
+        "r1041_e82_400bps_sup_v5.0.0": "https://cdn.oxfordnanoportal.com/software/analysis/models/clair3/r1041_e82_400bps_sup_v500.tar.gz",
     }
     model = path2model[config["basecalling_model"]]
     model_name = os.path.basename(model)
@@ -93,7 +108,13 @@ def get_medaka_model(wildcards):
 
 
 def get_vcf(wildcards):
-    assigntype = {"medaka": "SNV", "clair3": "SNV", "NanoCaller": "SNV", "cutesv": "SV", "sniffles2": "SV"}
+    assigntype = {
+        "medaka": "SNV",
+        "clair3": "SNV",
+        "NanoCaller": "SNV",
+        "cutesv": "SV",
+        "sniffles2": "SV",
+    }
     return os.path.join(outdir, assigntype[wildcards.tool], "{tool}/{sample}.vcf")
 
 
@@ -115,44 +136,50 @@ def get_shared_variants(wildcards):
     else:
         return ()
 
+
 def get_frequency_filtering_parameters(wildcards):
     if wildcards.tool == "clair3":
-        return f"-i 'FORMAT/AF >= {config["frequency_threshold"][wildcards.tool]}'"
+        return f"-i 'FORMAT/AF >= {config[" frequency_threshold "][wildcards.tool]}'"
     elif wildcards.tool == "DeepVariant":
-        return f"-i 'FORMAT/VAF >= {config["frequency_threshold"][wildcards.tool]}'"
+        return f"-i 'FORMAT/VAF >= {config[" frequency_threshold "][wildcards.tool]}'"
     elif wildcards.tool == "sniffles2":
-        return f"-i 'INFO/AF >= {config["frequency_threshold"][wildcards.tool]}'"
+        return f"-i 'INFO/AF >= {config[" frequency_threshold "][wildcards.tool]}'"
     elif wildcards.tool == "cutesv":
-        return f"-i 'INFO/AF >= {config["frequency_threshold"][wildcards.tool]}'"
+        return f"-i 'INFO/AF >= {config[" frequency_threshold "][wildcards.tool]}'"
     elif wildcards.tool == "breseq":
-        return f"-i 'INFO/AF >= {config["frequency_threshold"][wildcards.tool]}'"
+        return f"-i 'INFO/AF >= {config[" frequency_threshold "][wildcards.tool]}'"
 
 
 def get_group_reference(wildcards):
-    reference = SAMPLEINFO[SAMPLEINFO['group'] == wildcards.group].reference.unique()
+    reference = SAMPLEINFO[SAMPLEINFO["group"] == wildcards.group].reference.unique()
     if len(reference) == 1:
         return reference[0]
     else:
         print(reference)
         raise ValueError(f"Multiple or no references found for group {wildcards.group}")
 
+
 def get_group_annotation(wildcards):
-    gff = SAMPLEINFO[SAMPLEINFO['group'] == wildcards.group].annotation.unique()
+    gff = SAMPLEINFO[SAMPLEINFO["group"] == wildcards.group].annotation.unique()
     if len(gff) == 1:
         return gff[0]
     else:
-        raise ValueError(f"Multiple or no annotations found for group {wildcards.group}")
+        raise ValueError(
+            f"Multiple or no annotations found for group {wildcards.group}"
+        )
+
 
 def get_group_gd_files(wildcards):
     import os
 
 
 def get_group_gd_files(wildcards):
-    group_samples = SAMPLEINFO[SAMPLEINFO['group'] == wildcards.group]["sample"].tolist()
+    group_samples = SAMPLEINFO[SAMPLEINFO["group"] == wildcards.group][
+        "sample"
+    ].tolist()
     gd_files = [
         os.path.join(outdir, f"variant_reports/{sample}/{sample}.{tool}.gd")
         for sample in group_samples
         for tool in ["breseq", "clair3", "DeepVariant", "cutesv", "sniffles2"]
-        
-    ]    
+    ]
     return gd_files

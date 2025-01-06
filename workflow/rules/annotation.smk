@@ -3,6 +3,11 @@
 # --------------------------------------------------------------------------- #
 rule gdtools_annotate:
     """Convert vcf to gd format and annotate"""
+
+    # TODO: Contains a stopgap solution to how cuteSV reports inversions vs how gdtools
+    # expects them. Needs a more appropriate solution - possibly through a new
+    # annotation route. Also see:
+    # https://github.com/biosustain/snakemake-ont-bacterial-variants/issues/3#issue-2770470047
     message:
         "--- Convert vcf to gd format and annotate"
     input:
@@ -10,11 +15,19 @@ rule gdtools_annotate:
         reference=get_reference,
         gff=get_annotation,
     output:
-        gd_file=temp(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd")),
-        annotated=os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.annotated.gd"),
+        gd_file=temp(
+            os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd")
+        ),
+        annotated=os.path.join(
+            outdir, "variant_reports/{sample}/{sample}.{tool}.annotated.gd"
+        ),
     log:
-        stdout=os.path.join(outdir, "variant_reports/logs/{sample}.{tool}.annotate.stdout"),
-        stderr=os.path.join(outdir, "variant_reports/logs/{sample}.{tool}.annotate.stderr"),
+        stdout=os.path.join(
+            outdir, "variant_reports/logs/{sample}.{tool}.annotate.stdout"
+        ),
+        stderr=os.path.join(
+            outdir, "variant_reports/logs/{sample}.{tool}.annotate.stderr"
+        ),
     conda:
         "../envs/breseq.yml"
     shell:
@@ -23,14 +36,15 @@ rule gdtools_annotate:
         "-o {output.gd_file} "
         "1> {log.stdout} "
         "2> {log.stderr} && "
+        "sed -i 's/<INV>/NNNNN/g' {output.gd_file} && "
         "gdtools ANNOTATE "
         "-r {input.gff} "
         "-r {input.reference} "
         "-f GD "
         "-o {output.annotated} "
         "{output.gd_file} "
-        "1> {log.stdout} "
-        "2> {log.stderr}"
+        "1>> {log.stdout} "
+        "2>> {log.stderr}"
 
 
 # --------------------------------------------------------------------------- #
@@ -41,9 +55,6 @@ rule gdtools_compare:
     message:
         "--- Compare variants with gdtools"
     input:
-        # gd_files=expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd"), sample=SAMPLES, tool=["breseq", "clair3", "medaka", "NanoCaller", "cutesv", "sniffles2"]),
-        # gd_files=expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd"), sample=SAMPLES, tool=["breseq", "clair3", "NanoCaller", "DeepVariant",  "cutesv", "sniffles2"]),
-        # gd_files=expand(os.path.join(outdir, "variant_reports/{sample}/{sample}.{tool}.gd"), sample=SAMPLES, tool=["breseq", "clair3", "DeepVariant",  "cutesv", "sniffles2"]),
         gd_files=get_group_gd_files,
         reference=get_group_reference,
         gff=get_group_annotation,
@@ -68,7 +79,7 @@ rule gdtools_compare:
         "-r {input.gff} "
         "-r {input.reference} "
         "-f table "
-        "-o {output.csv} "
+        "-o {output.tsv} "
         "{input.gd_files} "
-        "1> {log.stdout} "
-        "2> {log.stderr}"
+        "1>> {log.stdout} "
+        "2>> {log.stderr}"

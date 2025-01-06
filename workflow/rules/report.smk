@@ -12,17 +12,19 @@ rule collect_vcfs:
         DeepVariant=os.path.join(outdir, "SNV/DeepVariant/{sample}.filtered.vcf"),
         cutesv=os.path.join(outdir, "SV/cutesv/{sample}.filtered.vcf"),
         sniffles2=os.path.join(outdir, "SV/sniffles2/{sample}.filtered.vcf"),
-        breseq=os.path.join(outdir, "SNV/breseq/{sample}.filtered.vcf")
+        breseq=os.path.join(outdir, "SNV/breseq/{sample}.filtered.vcf"),
     output:
         # medaka=os.path.join(outdir, "variant_reports/{sample}/{sample}.medaka.vcf"),
         clair3=os.path.join(outdir, "variant_reports/{sample}/{sample}.clair3.vcf"),
         # NanoCaller=os.path.join(outdir, "variant_reports/{sample}/{sample}.NanoCaller.vcf"),
-        DeepVariant=os.path.join(outdir, "variant_reports/{sample}/{sample}.DeepVariant.vcf"),
+        DeepVariant=os.path.join(
+            outdir, "variant_reports/{sample}/{sample}.DeepVariant.vcf"
+        ),
         cutesv=os.path.join(outdir, "variant_reports/{sample}/{sample}.cutesv.vcf"),
         sniffles2=os.path.join(
             outdir, "variant_reports/{sample}/{sample}.sniffles2.vcf"
         ),
-        breseq=os.path.join(outdir, "variant_reports/{sample}/{sample}.breseq.vcf")
+        breseq=os.path.join(outdir, "variant_reports/{sample}/{sample}.breseq.vcf"),
     log:
         os.path.join(outdir, "variant_reports/logs/{sample}.collect_vcfs.log"),
     conda:
@@ -30,11 +32,12 @@ rule collect_vcfs:
     shell:
         # "cp {input.medaka} {output.medaka} > {log} && "
         "cp {input.clair3} {output.clair3} >> {log} && "
-        # "cp {input.NanoCaller} {output.NanoCaller} >> {log} && "
+
         "cp {input.DeepVariant} {output.DeepVariant} >> {log} && "
         "cp {input.cutesv} {output.cutesv} >> {log} && "
         "cp {input.sniffles2} {output.sniffles2} >> {log} && "
         "cp {input.breseq} {output.breseq} >> {log}"
+        # "cp {input.NanoCaller} {output.NanoCaller} >> {log} && "
 
 
 # --------------------------------------------------------------------------- #
@@ -48,7 +51,9 @@ rule prepare_vcfs:
         # medaka=os.path.join(outdir, "variant_reports/{sample}/{sample}.medaka.vcf"),
         clair=os.path.join(outdir, "variant_reports/{sample}/{sample}.clair3.vcf"),
         # NanoCaller=os.path.join(outdir, "variant_reports/{sample}/{sample}.NanoCaller.vcf"),
-        DeepVariant=os.path.join(outdir, "variant_reports/{sample}/{sample}.DeepVariant.vcf"),
+        DeepVariant=os.path.join(
+            outdir, "variant_reports/{sample}/{sample}.DeepVariant.vcf"
+        ),
         cutesv=os.path.join(outdir, "variant_reports/{sample}/{sample}.cutesv.vcf"),
         sniffles=os.path.join(outdir, "variant_reports/{sample}/{sample}.sniffles2.vcf"),
         breseq=os.path.join(outdir, "variant_reports/{sample}/{sample}.breseq.vcf"),
@@ -76,7 +81,9 @@ rule igv_reports:
         # medaka=os.path.join(outdir, "variant_reports/{sample}/{sample}.medaka.vcf"),
         clair=os.path.join(outdir, "variant_reports/{sample}/{sample}.clair3.vcf"),
         # NanoCaller=os.path.join(outdir, "variant_reports/{sample}/{sample}.NanoCaller.vcf"),
-        DeepVariant=os.path.join(outdir, "variant_reports/{sample}/{sample}.DeepVariant.vcf"),
+        DeepVariant=os.path.join(
+            outdir, "variant_reports/{sample}/{sample}.DeepVariant.vcf"
+        ),
         cutesv=os.path.join(outdir, "variant_reports/{sample}/{sample}.cutesv.vcf"),
         sniffles=os.path.join(outdir, "variant_reports/{sample}/{sample}.sniffles2.vcf"),
         breseq=os.path.join(outdir, "variant_reports/{sample}/{sample}.breseq.vcf"),
@@ -98,8 +105,6 @@ rule igv_reports:
         "--begin 2 "
         "--end 3 "
         "--fasta {input.reference} "
-        # "--tracks {params.gff} {input.bam} {input.medaka} {input.clair} {input.cutesv} {input.sniffles} "
-        # "--tracks {params.gff} {input.bam} {input.clair} {input.NanoCaller} {input.DeepVariant} {input.cutesv} {input.sniffles} {input.breseq} "
         "--tracks {params.gff} {input.bam} {input.clair} {input.DeepVariant} {input.cutesv} {input.sniffles} {input.breseq} "
         "--flanking 1000 "
         "--info-columns 'contig' 'variant region start' 'variant region end' 'variant details' "
@@ -128,7 +133,9 @@ rule report:
         # medaka=os.path.join(outdir, "variant_reports/{sample}/{sample}.medaka.vcf"),
         clair3=os.path.join(outdir, "variant_reports/{sample}/{sample}.clair3.vcf"),
         # NanoCaller=os.path.join(outdir, "variant_reports/{sample}/{sample}.NanoCaller.vcf"),
-        DeepVariant=os.path.join(outdir, "variant_reports/{sample}/{sample}.DeepVariant.vcf"),
+        DeepVariant=os.path.join(
+            outdir, "variant_reports/{sample}/{sample}.DeepVariant.vcf"
+        ),
         cutesv=os.path.join(outdir, "variant_reports/{sample}/{sample}.cutesv.vcf"),
         sniffles=os.path.join(outdir, "variant_reports/{sample}/{sample}.sniffles2.vcf"),
         breseq=os.path.join(outdir, "variant_reports/{sample}/{sample}.breseq.vcf"),

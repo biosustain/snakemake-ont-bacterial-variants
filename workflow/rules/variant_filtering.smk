@@ -21,6 +21,7 @@ rule prefilter_variants_clair:
         "{params.minf} "
         "{input.vcf}  > {output}"
 
+
 if config["remove_common_variants"] and len(SAMPLES) > 1:
 
     # --------------------------------------------------------------------------- #

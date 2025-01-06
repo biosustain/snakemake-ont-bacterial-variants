@@ -2,6 +2,7 @@
 # Read filtering                                                              #
 # --------------------------------------------------------------------------- #
 if config["filtering"] == "filtlong":
+
     rule filtlong:
         """Filtering of nanopore reads with filtlong"""
         message:
@@ -24,6 +25,7 @@ if config["filtering"] == "filtlong":
             "gzip > {output}"
 
 elif config["filtering"] == "chopper":
+
     rule chopper:
         """Filtering of nanopore reads with chopper"""
         message:
@@ -35,9 +37,8 @@ elif config["filtering"] == "chopper":
         log:
             os.path.join(outdir, "filtered_reads/logs/{sample}.log"),
         params:
-            default=lambda wildcards: " ".join(config["chopper"]["params"])
-        threads:
-            config["chopper"]["threads"]
+            default=lambda wildcards: " ".join(config["chopper"]["params"]),
+        threads: config["chopper"]["threads"]
         conda:
             "../envs/chopper.yml"
         shell:
@@ -57,7 +58,7 @@ rule copy_index:
     message:
         "--- Copy and index refernce files"
     input:
-        reference=lambda wildcards: GENOMES[wildcards.genome]
+        reference=lambda wildcards: GENOMES[wildcards.genome],
     output:
         reference=os.path.join(outdir, "inputs", "{genome}.fa"),
         index=os.path.join(outdir, "inputs", "{genome}.fa.fai"),
@@ -79,6 +80,7 @@ rule copy_index:
 # Mapping against reference genome                                            #
 # --------------------------------------------------------------------------- #
 if config["aligner"] == "ngmlr":
+
     rule mapping:
         """Mapping of ONT data against reference genome with ngmlr"""
         message:
@@ -96,7 +98,7 @@ if config["aligner"] == "ngmlr":
             samtools=os.path.join(outdir, "mapping/logs/{sample}.samtools.log"),
         params:
             tmpdir=os.path.join(outdir, "mapping/{sample}"),
-            other=" ".join(config["nglmr"]["params"])
+            other=" ".join(config["nglmr"]["params"]),
         threads: config["ngmlr"]["threads"]
         conda:
             "../envs/ngmlr.yml"
@@ -120,6 +122,7 @@ if config["aligner"] == "ngmlr":
             "samtools stats {output.bam} > {output.stats} 2>> {log.samtools}"
 
 elif config["aligner"] == "minimap2":
+
     rule mapping:
         """Mapping of ONT data against reference genome with minimap2"""
         message:
@@ -137,7 +140,7 @@ elif config["aligner"] == "minimap2":
             samtools=os.path.join(outdir, "mapping/logs/{sample}.samtools.log"),
         params:
             tmpdir=os.path.join(outdir, "mapping/{sample}"),
-            other=" ".join(config["minimap2"]["params"])
+            other=" ".join(config["minimap2"]["params"]),
         threads: config["minimap2"]["threads"]
         conda:
             "../envs/minimap2.yml"
