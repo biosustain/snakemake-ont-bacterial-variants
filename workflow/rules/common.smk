@@ -170,10 +170,6 @@ def get_group_annotation(wildcards):
 
 
 def get_group_gd_files(wildcards):
-    import os
-
-
-def get_group_gd_files(wildcards):
     group_samples = SAMPLEINFO[SAMPLEINFO["group"] == wildcards.group][
         "sample"
     ].tolist()
